@@ -1,6 +1,16 @@
 # just_launch
 
-A new Flutter project.
+Distraction free launcher
+
+----
+
+Install using [dat-installer](https://github.com/staltz/dat-installer)
+
+[Direct Dat](dat://74cff2fbd54e60cc87f3156ca75ea6112d5df5c8a4e88ab1897bb81d0331134c)
+`dat://74cff2fbd54e60cc87f3156ca75ea6112d5df5c8a4e88ab1897bb81d0331134c` or use
+[https://just-launch.hashbase.io](https://just-launch.hashbase.io)
+
+![Screenshot](./screenshot.png)
 
 ## Getting Started
 
