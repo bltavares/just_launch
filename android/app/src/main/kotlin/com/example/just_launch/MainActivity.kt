@@ -1,4 +1,4 @@
-package com.example.justlaunch
+package com.example.just_launch
 
 import android.os.Bundle
 

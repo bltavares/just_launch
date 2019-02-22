@@ -123,7 +123,11 @@ class AppListState extends State<AppList> {
   }
 
   Stream<List> get _sortedApps {
-    return this._apps.map((apps) => $(apps).sortedBy((app) => app["label"]));
+    return this._apps.map(
+          (apps) => $(apps)
+              .where((app) => app["label"] != "just_launch")
+              .sortedBy((app) => app["label"]),
+        );
   }
 
   final text = TextEditingController();
