@@ -1,9 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:launcher_assist/launcher_assist.dart';
-import 'dart:convert';
+import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:superpower/superpower.dart';
-import 'package:rxdart/rxdart.dart';
 
 var globalTheme = ThemeData.dark().copyWith(
   scaffoldBackgroundColor: Colors.black,
@@ -97,6 +98,13 @@ class AppList extends StatefulWidget {
     this.installedApps, {
     Key key,
   }) : super(key: key);
+
+  factory AppList.forDesignTime() {
+    return new AppList([
+      {'label': "Banana"},
+      {"label": "mundo"},
+    ]);
+  }
 
   @override
   AppListState createState() {
