@@ -139,6 +139,7 @@ class AppListState extends State<AppList> {
         padding: const EdgeInsets.symmetric(vertical: 16.0),
         child: Text(
           app["label"],
+          textAlign: TextAlign.center,
           style: TextStyle(fontSize: 26),
         ),
       ),
