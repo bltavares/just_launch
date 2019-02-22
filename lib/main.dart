@@ -126,6 +126,8 @@ class AppListState extends State<AppList> {
     return this._apps.map((apps) => $(apps).sortedBy((app) => app["label"]));
   }
 
+  final text = TextEditingController();
+
   void dispose() {
     search.close();
     super.dispose();
@@ -141,6 +143,8 @@ class AppListState extends State<AppList> {
         ),
       ),
       onPressed: () {
+        search.add(null);
+        text.clear();
         LauncherAssist.launchApp(app["package"]);
       },
     );
@@ -155,8 +159,10 @@ class AppListState extends State<AppList> {
           children: <Widget>[
             TextField(
               autofocus: true,
+              autocorrect: false,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 26),
+              controller: text,
               onChanged: search.add,
             ),
             StreamBuilder(
