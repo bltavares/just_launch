@@ -168,20 +168,26 @@ class AppListState extends State<AppList> {
     return Padding(
       padding: const EdgeInsets.only(top: 20.0),
       child: Center(
-        child: Column(
-          children: <Widget>[
-            TextField(
-              autofocus: true,
-              autocorrect: false,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 26),
-              controller: text,
-              onChanged: search.add,
-            ),
-            StreamBuilder(
-              initialData: widget.installedApps,
-              stream: this._sortedApps,
-              builder: (context, AsyncSnapshot<List<dynamic>> snapshot) =>
+        child: StreamBuilder(
+          initialData: widget.installedApps,
+          stream: this._sortedApps,
+          builder: (context, AsyncSnapshot<List<dynamic>> snapshot) => Column(
+                children: <Widget>[
+                  TextField(
+                    autofocus: true,
+                    autocorrect: false,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 26),
+                    controller: text,
+                    onChanged: search.add,
+                    onSubmitted: (valueChanged) {
+                      if (snapshot.data.length > 0) {
+                        LauncherAssist.launchApp(snapshot.data[0]["package"]);
+                      }
+                      search.add(null);
+                      text.clear();
+                    },
+                  ),
                   Expanded(
                     child: ListView.builder(
                       itemCount: snapshot.data.length,
@@ -191,8 +197,8 @@ class AppListState extends State<AppList> {
                           ),
                     ),
                   ),
-            ),
-          ],
+                ],
+              ),
         ),
       ),
     );
