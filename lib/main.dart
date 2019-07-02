@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:launcher_assist/launcher_assist.dart';
 import 'package:rxdart/rxdart.dart';
@@ -9,6 +10,24 @@ import 'package:superpower/superpower.dart';
 var globalTheme = ThemeData.dark().copyWith(
   scaffoldBackgroundColor: Colors.black,
 );
+
+Future<List<dynamic>> fetchCachedApps() {
+  return SharedPreferences.getInstance().then((cache) {
+    var storedApps = cache.getString("apps");
+    if (storedApps == null) {
+      return [];
+    }
+    try {
+      return jsonDecode(storedApps);
+    } catch (error) {
+      return [];
+    }
+  });
+}
+
+Future<List<dynamic>> findApps() async {
+  return await LauncherAssist.getAllApps();
+}
 
 void main() => runApp(MyApp());
 
@@ -37,20 +56,6 @@ class MyLauncher extends StatefulWidget {
 class MyAppState extends State<MyLauncher> {
   var installedApps = [];
 
-  Future<List<dynamic>> fetchCachedApps() {
-    return SharedPreferences.getInstance().then((cache) {
-      var storedApps = cache.getString("apps");
-      if (storedApps == null) {
-        return [];
-      }
-      try {
-        return jsonDecode(storedApps);
-      } catch (error) {
-        return [];
-      }
-    });
-  }
-
   List<dynamic> setApps(List<dynamic> apps) {
     setState(() {
       this.installedApps = apps;
@@ -64,22 +69,21 @@ class MyAppState extends State<MyLauncher> {
     });
   }
 
-  Future<List<dynamic>> findApps() async {
-    List<dynamic> apps = await LauncherAssist.getAllApps();
-    return apps;
-  }
-
   @override
   void initState() {
     super.initState();
+    updateAppList();
+  }
+
+  Future<void> updateAppList() {
     fetchCachedApps().then(this.setApps);
-    findApps().then(this.setApps).then(this.cacheApps);
+    return findApps().then(this.setApps).then(this.cacheApps);
   }
 
   @override
   Widget build(BuildContext context) {
     if (this.installedApps.length > 0) {
-      return AppList(this.installedApps);
+      return AppList(this.installedApps, this.updateAppList);
     }
 
     return Center(
@@ -93,9 +97,11 @@ class MyAppState extends State<MyLauncher> {
 
 class AppList extends StatefulWidget {
   final List<dynamic> installedApps;
+  final RefreshCallback updateCallback;
 
   const AppList(
-    this.installedApps, {
+    this.installedApps,
+    this.updateCallback, {
     Key key,
   }) : super(key: key);
 
@@ -103,7 +109,9 @@ class AppList extends StatefulWidget {
     return new AppList([
       {'label': "Banana"},
       {"label": "mundo"},
-    ]);
+    ], () {
+      return;
+    });
   }
 
   @override
@@ -183,14 +191,19 @@ class AppListState extends State<AppList> {
               stream: this._sortedApps,
               builder: (context, AsyncSnapshot<List<dynamic>> snapshot) =>
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: snapshot.data.length,
-                      itemBuilder: (context, index) => this.appButton(
-                            context,
-                            snapshot.data[index],
-                          ),
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    await this.widget.updateCallback();
+                  },
+                  child: ListView.builder(
+                    itemCount: snapshot.data.length,
+                    itemBuilder: (context, index) => this.appButton(
+                      context,
+                      snapshot.data[index],
                     ),
                   ),
+                ),
+              ),
             ),
           ],
         ),
