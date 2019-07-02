@@ -7,6 +7,28 @@ import 'package:superpower/superpower.dart' show $;
 import 'package:launcher_assist/launcher_assist.dart' show LauncherAssist;
 import 'package:rxdart/rxdart.dart' show BehaviorSubject, Observable;
 
+Future<List<dynamic>> _fetchCachedApps() {
+  return SharedPreferences.getInstance().then((cache) {
+    var storedApps = cache.getString("apps");
+    if (storedApps == null) {
+      return [];
+    }
+    try {
+      return jsonDecode(storedApps);
+    } catch (error) {
+      return [];
+    }
+  });
+}
+
+Future _cacheApps(apps) {
+  return SharedPreferences.getInstance().then((cache) {
+    cache.setString("apps", jsonEncode(apps));
+  });
+}
+
+Future<List<dynamic>> _findApps() async => await LauncherAssist.getAllApps();
+
 var globalTheme = ThemeData.dark().copyWith(
   scaffoldBackgroundColor: Colors.black,
 );
@@ -58,33 +80,8 @@ class AppListModel {
     );
   }
 
-  Future<List<dynamic>> _fetchCachedApps() {
-    return SharedPreferences.getInstance().then((cache) {
-      var storedApps = cache.getString("apps");
-      if (storedApps == null) {
-        return [];
-      }
-      try {
-        return jsonDecode(storedApps);
-      } catch (error) {
-        return [];
-      }
-    });
-  }
-
   List<dynamic> _setApps(List<dynamic> apps) {
     _installedApps.add(apps);
-    return apps;
-  }
-
-  Future _cacheApps(apps) {
-    return SharedPreferences.getInstance().then((cache) {
-      cache.setString("apps", jsonEncode(apps));
-    });
-  }
-
-  Future<List<dynamic>> _findApps() async {
-    List<dynamic> apps = await LauncherAssist.getAllApps();
     return apps;
   }
 
@@ -96,9 +93,9 @@ class AppListModel {
     );
   }
 
-  void initState() {
+  Future<void> updateApps() async {
     _fetchCachedApps().then(this._setApps);
-    _findApps().then(this._setApps).then(this._cacheApps);
+    return _findApps().then(this._setApps).then(_cacheApps);
   }
 }
 
@@ -115,7 +112,7 @@ class MyLauncherState extends State<MyLauncher> {
   @override
   void initState() {
     super.initState();
-    appListModel.initState();
+    appListModel.updateApps();
   }
 
   @override
@@ -159,14 +156,17 @@ class AppList extends StatelessWidget {
                       search: installedApps.search,
                     ),
                     Expanded(
-                      child: ListView.builder(
-                        itemCount: snapshot.data.length,
-                        itemBuilder: (context, index) => AppListButton(
-                              search: installedApps.search,
-                              appList: snapshot.data,
-                              index: index,
-                              text: text,
-                            ),
+                      child: RefreshIndicator(
+                        onRefresh: installedApps.updateApps,
+                        child: ListView.builder(
+                          itemCount: snapshot.data.length,
+                          itemBuilder: (context, index) => AppListButton(
+                                search: installedApps.search,
+                                appList: snapshot.data,
+                                index: index,
+                                text: text,
+                              ),
+                        ),
                       ),
                     ),
                   ],
