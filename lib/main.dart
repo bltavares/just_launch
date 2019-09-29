@@ -64,7 +64,7 @@ class AppListModel {
   Stream<List<dynamic>> get _filteredApps {
     return Observable.combineLatest2(
       _installedApps,
-      _search.debounce(Duration(milliseconds: 300)),
+      _search.debounceTime(Duration(milliseconds: 300)),
       (List<dynamic> installedApps, String search) {
         if (search == null || search == "") {
           return installedApps;
@@ -161,11 +161,11 @@ class AppList extends StatelessWidget {
                         child: ListView.builder(
                           itemCount: snapshot.data.length,
                           itemBuilder: (context, index) => AppListButton(
-                                search: installedApps.search,
-                                appList: snapshot.data,
-                                index: index,
-                                text: text,
-                              ),
+                            search: installedApps.search,
+                            appList: snapshot.data,
+                            index: index,
+                            text: text,
+                          ),
                         ),
                       ),
                     ),
