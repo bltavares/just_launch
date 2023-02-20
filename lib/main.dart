@@ -1,49 +1,34 @@
-import 'dart:convert' show jsonDecode, jsonEncode;
-
+import 'package:collection/collection.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:package_manager/package_manager.dart';
+import 'package:package_manager/package_manager_platform_interface.dart';
+import 'package:rxdart/rxdart.dart';
 
-import 'package:superpower/superpower.dart' show $;
-import 'package:launcher_assist/launcher_assist.dart' show LauncherAssist;
-import 'package:rxdart/rxdart.dart' show BehaviorSubject, Observable;
-
-Future<List<dynamic>> _fetchCachedApps() {
-  return SharedPreferences.getInstance().then((cache) {
-    var storedApps = cache.getString("apps");
-    if (storedApps == null) {
-      return [];
-    }
-    try {
-      return jsonDecode(storedApps);
-    } catch (error) {
-      return [];
-    }
-  });
-}
-
-Future _cacheApps(apps) {
-  return SharedPreferences.getInstance().then((cache) {
-    cache.setString("apps", jsonEncode(apps));
-  });
-}
-
-Future<List<dynamic>> _findApps() async => await LauncherAssist.getAllApps();
-
-var globalTheme = ThemeData.dark().copyWith(
-  scaffoldBackgroundColor: Colors.black,
-);
-
-void main() => runApp(MyApp());
+void main() => runApp(const MyApp());
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: globalTheme,
-      home: WillPopScope(
-        onWillPop: () async => false,
-        child: Scaffold(
-          body: MyLauncher(),
+    var fallbackTheme = ColorScheme.fromSeed(
+      seedColor: Colors.grey,
+      brightness: Brightness.dark,
+      background: Colors.black,
+    ).copyWith(primary: Colors.white);
+
+    return DynamicColorBuilder(
+      builder: (_, darkTheme) => MaterialApp(
+        theme: ThemeData(
+          colorScheme: darkTheme ?? fallbackTheme,
+          useMaterial3: true,
+        ),
+        home: WillPopScope(
+          onWillPop: () async => false,
+          child: const Scaffold(
+            body: MyLauncher(),
+          ),
         ),
       ),
     );
@@ -51,55 +36,65 @@ class MyApp extends StatelessWidget {
 }
 
 class AppListModel {
+  final PackageManager plugin;
+
   final _search = BehaviorSubject<String>.seeded("");
-  final _installedApps = BehaviorSubject<List<dynamic>>.seeded([]);
+  final _installedApps = BehaviorSubject<List<InstalledApp>>.seeded([]);
+
+  AppListModel(this.plugin);
 
   Sink<String> get search => _search.sink;
+
+  Future<List<InstalledApp>> _findApps() async => await plugin.getAllApps();
 
   void dispose() {
     _search.close();
     _installedApps.close();
   }
 
-  Stream<List<dynamic>> get _filteredApps {
-    return Observable.combineLatest2(
+  Stream<List<InstalledApp>> get _filteredApps {
+    return Rx.combineLatest2(
       _installedApps,
-      _search.debounceTime(Duration(milliseconds: 300)),
-      (List<dynamic> installedApps, String search) {
-        if (search == null || search == "") {
+      _search.debounceTime(const Duration(milliseconds: 300)),
+      (List<InstalledApp> installedApps, String search) {
+        if (search == "") {
           return installedApps;
         }
 
-        return $(installedApps.where(
-          (app) => app["label"]
-              .toString()
-              .toLowerCase()
-              .contains(search.toLowerCase()),
-        ));
+        return installedApps
+            .where(
+              (app) => app.label.toLowerCase().contains(search.toLowerCase()),
+            )
+            .toList();
       },
     );
   }
 
-  List<dynamic> _setApps(List<dynamic> apps) {
+  List<dynamic> _setApps(List<InstalledApp> apps) {
     _installedApps.add(apps);
     return apps;
   }
 
-  Stream<List> get apps {
+  Stream<List<InstalledApp>> get apps {
     return _filteredApps.map(
-      (apps) => $(apps)
-          .where((app) => app["label"] != "just_launch")
-          .sortedBy((app) => app["label"]),
+      (apps) => apps
+          .where((app) => app.label != "just_launch")
+          .sortedBy((app) => app.label.toLowerCase()),
     );
   }
 
   Future<void> updateApps() async {
-    _fetchCachedApps().then(this._setApps);
-    return _findApps().then(this._setApps).then(_cacheApps);
+    return _findApps().then(_setApps);
+  }
+
+  Future<void> launchPackage(InstalledApp app) {
+    return plugin.launchApp(app.package);
   }
 }
 
 class MyLauncher extends StatefulWidget {
+  const MyLauncher({super.key});
+
   @override
   MyLauncherState createState() {
     return MyLauncherState();
@@ -107,11 +102,13 @@ class MyLauncher extends StatefulWidget {
 }
 
 class MyLauncherState extends State<MyLauncher> {
-  final appListModel = AppListModel();
+  final plugin = PackageManager();
+  late final AppListModel appListModel;
 
   @override
   void initState() {
     super.initState();
+    appListModel = AppListModel(plugin);
     appListModel.updateApps();
   }
 
@@ -122,89 +119,111 @@ class MyLauncherState extends State<MyLauncher> {
   }
 
   @override
-  Widget build(BuildContext context) => AppList(appListModel);
+  Widget build(BuildContext context) => AppList(
+        installedApps: appListModel,
+        plugin: plugin,
+      );
 }
 
 class AppList extends StatelessWidget {
   final AppListModel installedApps;
+  final PackageManager plugin;
   final TextEditingController text = TextEditingController();
 
-  AppList(
-    this.installedApps, {
-    Key key,
+  AppList({
+    required this.installedApps,
+    required this.plugin,
+    Key? key,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
         stream: installedApps.apps,
-        builder: (context, AsyncSnapshot<List<dynamic>> snapshot) {
-          if (!snapshot.hasData) {
-            return Center(
-              child: Text("Just Launch", style: TextStyle(fontSize: 36)),
-            );
-          }
+        builder: (context, AsyncSnapshot<List<InstalledApp>> snapshot) {
+          Widget child;
 
-          return Padding(
-              padding: const EdgeInsets.only(top: 20.0),
-              child: Center(
-                child: Column(
-                  children: <Widget>[
-                    SearchTextField(
-                      text: text,
-                      appList: snapshot.data,
-                      search: installedApps.search,
-                    ),
-                    Expanded(
-                      child: RefreshIndicator(
-                        onRefresh: installedApps.updateApps,
-                        child: ListView.builder(
-                          itemCount: snapshot.data.length,
-                          itemBuilder: (context, index) => AppListButton(
-                            search: installedApps.search,
-                            appList: snapshot.data,
-                            index: index,
-                            text: text,
+          final data = snapshot.data;
+          if (data == null || data.isEmpty) {
+            child = const Center(
+              child: Text(
+                  key: Key("loading"),
+                  "Just Launch",
+                  style: TextStyle(fontSize: 36)),
+            );
+          } else {
+            child = Padding(
+                padding: const EdgeInsets.only(top: 20.0),
+                child: Center(
+                  child: Column(
+                    children: <Widget>[
+                      SearchTextField(
+                        text: text,
+                        appList: data,
+                        search: installedApps.search,
+                        plugin: plugin,
+                      ),
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: installedApps.updateApps,
+                          child: ListView.builder(
+                            itemCount: data.length,
+                            itemBuilder: (context, index) => AppListButton(
+                              search: installedApps.search,
+                              app: data[index],
+                              text: text,
+                              plugin: plugin,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ));
+                    ],
+                  ),
+                ));
+          }
+
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 500),
+            child: child,
+          );
         });
   }
 }
 
 class AppListButton extends StatelessWidget {
   const AppListButton({
-    Key key,
-    @required this.text,
-    @required this.index,
-    @required this.appList,
-    @required this.search,
+    Key? key,
+    required this.text,
+    required this.app,
+    required this.search,
+    required this.plugin,
   }) : super(key: key);
 
   final TextEditingController text;
-  final List<dynamic> appList;
-  final int index;
+  final InstalledApp app;
   final Sink<String> search;
+  final PackageManager plugin;
 
   @override
   Widget build(BuildContext context) {
-    return FlatButton(
+    return TextButton(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 16.0),
         child: Text(
-          appList[index]["label"],
+          app.label,
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 26),
+          style: const TextStyle(fontSize: 26),
         ),
       ),
-      onPressed: () {
-        search.add(null);
+      onPressed: () async {
+        search.add("");
         text.clear();
-        LauncherAssist.launchApp(appList[index]["package"]);
+        await plugin.launchApp(app.package);
+      },
+      onLongPress: () async {
+        search.add("");
+        text.clear();
+        await plugin.launchSettings(app.package);
       },
     );
   }
@@ -212,15 +231,17 @@ class AppListButton extends StatelessWidget {
 
 class SearchTextField extends StatelessWidget {
   const SearchTextField({
-    Key key,
-    @required this.text,
-    @required this.search,
-    @required this.appList,
+    Key? key,
+    required this.text,
+    required this.search,
+    required this.appList,
+    required this.plugin,
   }) : super(key: key);
 
   final TextEditingController text;
-  final List<dynamic> appList;
+  final List<InstalledApp> appList;
   final Sink<String> search;
+  final PackageManager plugin;
 
   @override
   Widget build(BuildContext context) {
@@ -228,14 +249,14 @@ class SearchTextField extends StatelessWidget {
       autofocus: true,
       autocorrect: false,
       textAlign: TextAlign.center,
-      style: TextStyle(fontSize: 26),
+      style: const TextStyle(fontSize: 26),
       controller: text,
       onChanged: search.add,
       onSubmitted: (valueChanged) {
-        if (appList.length > 0) {
-          LauncherAssist.launchApp(appList[0]["package"]);
+        if (appList.isNotEmpty) {
+          plugin.launchApp(appList[0].package);
         }
-        search.add(null);
+        search.add("");
         text.clear();
       },
     );
