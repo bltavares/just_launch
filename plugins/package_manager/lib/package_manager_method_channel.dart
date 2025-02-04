@@ -4,15 +4,22 @@ import 'package:flutter/services.dart';
 import 'package_manager_platform_interface.dart';
 
 class AndroidInstalledApp extends InstalledApp {
-  final Map<String, String> _inner;
+  AndroidInstalledApp({required this.label, required this.package});
 
-  AndroidInstalledApp(this._inner);
+  static AndroidInstalledApp? fromJson(Map<String, dynamic> json) {
+    final label = json['label'] as String?;
+    final package = json['package'] as String?;
+    if (label != null && package != null) {
+      return AndroidInstalledApp(label: label, package: package);
+    }
+    return null;
+  }
 
   @override
-  String get label => _inner['label']!;
+  String label;
 
   @override
-  String get package => _inner['package']!;
+  String package;
 }
 
 /// An implementation of [PackageManagerPlatform] that uses method channels.
@@ -23,10 +30,14 @@ class MethodChannelPackageManager extends PackageManagerPlatform {
 
   @override
   Future<List<InstalledApp>> getAllApps() async {
-    final version = await methodChannel.invokeMethod<List>('getAllApps');
-    return version!.map((element) {
-      return AndroidInstalledApp(Map.castFrom(element));
-    }).toList();
+    final version =
+        await methodChannel.invokeMethod<List<dynamic>>('getAllApps') ??
+            const [];
+    return version
+        .cast<Map>()
+        .map((app) => AndroidInstalledApp.fromJson(app.cast()))
+        .nonNulls
+        .toList();
   }
 
   @override

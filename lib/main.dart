@@ -1,9 +1,11 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/material.dart';
 import 'package:package_manager/package_manager.dart';
 import 'package:package_manager/package_manager_platform_interface.dart';
-import 'package:rxdart/rxdart.dart';
+import 'package:provider/provider.dart';
 
 void main() => runApp(const MyApp());
 
@@ -15,7 +17,7 @@ class MyApp extends StatelessWidget {
     var fallbackTheme = ColorScheme.fromSeed(
       seedColor: Colors.grey,
       brightness: Brightness.dark,
-      background: Colors.black,
+      surface: Colors.black,
     ).copyWith(primary: Colors.white);
 
     return DynamicColorBuilder(
@@ -24,9 +26,9 @@ class MyApp extends StatelessWidget {
           colorScheme: darkTheme ?? fallbackTheme,
           useMaterial3: true,
         ),
-        home: WillPopScope(
-          onWillPop: () async => false,
-          child: const Scaffold(
+        home: const PopScope(
+          canPop: false,
+          child: Scaffold(
             body: MyLauncher(),
           ),
         ),
@@ -35,56 +37,58 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AppListModel {
-  final PackageManager plugin;
-
-  final _search = BehaviorSubject<String>.seeded("");
-  final _installedApps = BehaviorSubject<List<InstalledApp>>.seeded([]);
-
+class AppListModel extends ChangeNotifier {
   AppListModel(this.plugin);
 
-  Sink<String> get search => _search.sink;
+  final PackageManager plugin;
 
-  Future<List<InstalledApp>> _findApps() async => await plugin.getAllApps();
+  var _search = "";
+  var _installedApps = <InstalledApp>[];
+  var _hasError = false;
 
-  void dispose() {
-    _search.close();
-    _installedApps.close();
+  List<InstalledApp> get _filteredApps {
+    if (_search == "") {
+      return _installedApps;
+    }
+
+    return _installedApps
+        .where((app) => app.label.toLowerCase().contains(_search.toLowerCase()))
+        .toList();
   }
 
-  Stream<List<InstalledApp>> get _filteredApps {
-    return Rx.combineLatest2(
-      _installedApps,
-      _search.debounceTime(const Duration(milliseconds: 300)),
-      (List<InstalledApp> installedApps, String search) {
-        if (search == "") {
-          return installedApps;
-        }
-
-        return installedApps
-            .where(
-              (app) => app.label.toLowerCase().contains(search.toLowerCase()),
-            )
-            .toList();
-      },
-    );
+  set installedApps(List<InstalledApp> apps) {
+    _installedApps = apps;
+    notifyListeners();
   }
 
-  List<dynamic> _setApps(List<InstalledApp> apps) {
-    _installedApps.add(apps);
-    return apps;
+  set search(String search) {
+    _search = search;
+    notifyListeners();
   }
 
-  Stream<List<InstalledApp>> get apps {
-    return _filteredApps.map(
-      (apps) => apps
-          .where((app) => app.label != "just_launch")
-          .sortedBy((app) => app.label.toLowerCase()),
-    );
+  set hasError(bool status) {
+    _hasError = status;
+    notifyListeners();
   }
+
+  List<InstalledApp> get apps {
+    return _filteredApps
+        .where((app) => app.label != "just_launch")
+        .sortedBy((app) => app.label.toLowerCase());
+  }
+
+  bool get hasError => _hasError;
+
+  List<InstalledApp> get installedApps => _installedApps;
 
   Future<void> updateApps() async {
-    return _findApps().then(_setApps);
+    try {
+      hasError = false;
+      installedApps =
+          await plugin.getAllApps().timeout(const Duration(seconds: 5));
+    } catch (e) {
+      hasError = true;
+    }
   }
 
   Future<void> launchPackage(InstalledApp app) {
@@ -119,89 +123,110 @@ class MyLauncherState extends State<MyLauncher> {
   }
 
   @override
-  Widget build(BuildContext context) => AppList(
-        installedApps: appListModel,
-        plugin: plugin,
+  Widget build(BuildContext context) => ChangeNotifierProvider.value(
+        value: appListModel,
+        child: const AppList(),
       );
 }
 
-class AppList extends StatelessWidget {
-  final AppListModel installedApps;
-  final PackageManager plugin;
-  final TextEditingController text = TextEditingController();
+class AppList extends StatefulWidget {
+  const AppList({
+    super.key,
+  });
 
-  AppList({
-    required this.installedApps,
-    required this.plugin,
-    Key? key,
-  }) : super(key: key);
+  @override
+  State<AppList> createState() => _AppListState();
+}
+
+class _AppListState extends State<AppList> {
+  final TextEditingController text = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder(
-        stream: installedApps.apps,
-        builder: (context, AsyncSnapshot<List<InstalledApp>> snapshot) {
-          Widget child;
+    return Consumer<AppListModel>(builder: (context, model, _) {
+      Widget child;
 
-          final data = snapshot.data;
-          if (data == null || data.isEmpty) {
-            child = const Center(
-              child: Text(
-                  key: Key("loading"),
-                  "Just Launch",
-                  style: TextStyle(fontSize: 36)),
-            );
-          } else {
-            child = Padding(
-                padding: const EdgeInsets.only(top: 20.0),
-                child: Center(
-                  child: Column(
-                    children: <Widget>[
-                      SearchTextField(
-                        text: text,
-                        appList: data,
-                        search: installedApps.search,
-                        plugin: plugin,
-                      ),
-                      Expanded(
-                        child: RefreshIndicator(
-                          onRefresh: installedApps.updateApps,
-                          child: ListView.builder(
-                            itemCount: data.length,
-                            itemBuilder: (context, index) => AppListButton(
-                              search: installedApps.search,
-                              app: data[index],
-                              text: text,
-                              plugin: plugin,
-                            ),
-                          ),
+      if (model.hasError) {
+        child = Center(
+          key: const Key("error"),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                "Just Launch",
+                style: TextStyle(fontSize: 36),
+              ),
+              OutlinedButton(
+                onPressed: model.updateApps,
+                child: const Text("Retry"),
+              )
+            ],
+          ),
+        );
+      } else if (model.installedApps.isEmpty) {
+        child = const Center(
+          key: Key("loading"),
+          child: Text(
+            "Just Launch",
+            style: TextStyle(fontSize: 36),
+          ),
+        );
+      } else {
+        child = Padding(
+            key: const Key("loaded"),
+            padding: const EdgeInsets.only(top: 20.0),
+            child: Center(
+              child: Column(
+                children: <Widget>[
+                  SearchTextField(
+                    text: text,
+                    appList: model.apps,
+                    search: (e) {
+                      model.search = e;
+                    },
+                    plugin: model.plugin,
+                  ),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: model.updateApps,
+                      child: ListView.builder(
+                        itemCount: model.apps.length,
+                        itemBuilder: (context, index) => AppListButton(
+                          search: (String e) {
+                            model.search = e;
+                          },
+                          app: model.apps[index],
+                          text: text,
+                          plugin: model.plugin,
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ));
-          }
+                ],
+              ),
+            ));
+      }
 
-          return AnimatedSwitcher(
-            duration: const Duration(milliseconds: 500),
-            child: child,
-          );
-        });
+      return AnimatedSwitcher(
+        duration: const Duration(milliseconds: 500),
+        child: child,
+      );
+    });
   }
 }
 
 class AppListButton extends StatelessWidget {
   const AppListButton({
-    Key? key,
+    super.key,
     required this.text,
     required this.app,
     required this.search,
     required this.plugin,
-  }) : super(key: key);
+  });
 
   final TextEditingController text;
   final InstalledApp app;
-  final Sink<String> search;
+  final Function(String) search;
   final PackageManager plugin;
 
   @override
@@ -216,12 +241,12 @@ class AppListButton extends StatelessWidget {
         ),
       ),
       onPressed: () async {
-        search.add("");
+        search("");
         text.clear();
         await plugin.launchApp(app.package);
       },
       onLongPress: () async {
-        search.add("");
+        search("");
         text.clear();
         await plugin.launchSettings(app.package);
       },
@@ -231,16 +256,16 @@ class AppListButton extends StatelessWidget {
 
 class SearchTextField extends StatelessWidget {
   const SearchTextField({
-    Key? key,
+    super.key,
     required this.text,
     required this.search,
     required this.appList,
     required this.plugin,
-  }) : super(key: key);
+  });
 
   final TextEditingController text;
   final List<InstalledApp> appList;
-  final Sink<String> search;
+  final Function(String) search;
   final PackageManager plugin;
 
   @override
@@ -251,12 +276,12 @@ class SearchTextField extends StatelessWidget {
       textAlign: TextAlign.center,
       style: const TextStyle(fontSize: 26),
       controller: text,
-      onChanged: search.add,
+      onChanged: search,
       onSubmitted: (valueChanged) {
         if (appList.isNotEmpty) {
           plugin.launchApp(appList[0].package);
         }
-        search.add("");
+        search("");
         text.clear();
       },
     );

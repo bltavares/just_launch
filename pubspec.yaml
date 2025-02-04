@@ -1,24 +1,24 @@
 name: just_launch
 description: Distraction free launcher
-version: 1.0.9+1
-publish_to: 'none'
+version: 1.0.10+1
+publish_to: "none"
 
 environment:
-  sdk: '>=2.19.2 <3.0.0'
+  sdk: ^3.6.0
 
 dependencies:
   flutter:
     sdk: flutter
   package_manager:
     path: plugins/package_manager
-  rxdart: ^0.27.7
   collection: ^1.17.0
   dynamic_color: ^1.6.2
+  provider: ^6.1.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0
+  flutter_lints: ^5.0.0
 
 flutter:
   uses-material-design: false

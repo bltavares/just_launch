@@ -4,8 +4,8 @@ version: 0.0.1
 homepage: https://github.com/bltavares/just_launch
 
 environment:
-  sdk: '>=2.19.2 <3.0.0'
-  flutter: ">=2.5.0"
+  sdk: ^3.6.0
+  flutter: ">=3.3.0"
 
 dependencies:
   flutter:
@@ -15,7 +15,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0
+  flutter_lints: ^5.0.0
 
 flutter:
   plugin:
