@@ -32,7 +32,7 @@ class MethodChannelPackageManager extends PackageManagerPlatform {
   Future<List<InstalledApp>> getAllApps() async {
     final version =
         await methodChannel.invokeMethod<List<dynamic>>('getAllApps') ??
-            const [];
+        const [];
     return version
         .cast<Map>()
         .map((app) => AndroidInstalledApp.fromJson(app.cast()))
@@ -42,13 +42,15 @@ class MethodChannelPackageManager extends PackageManagerPlatform {
 
   @override
   Future<void> launchApp(String package) async {
-    await methodChannel
-        .invokeMethod<bool>('launchApp', {"packageName": package});
+    await methodChannel.invokeMethod<bool>('launchApp', {
+      "packageName": package,
+    });
   }
 
   @override
   Future<void> launchSettings(String package) async {
-    await methodChannel
-        .invokeMethod<bool>('launchSettings', {"packageName": package});
+    await methodChannel.invokeMethod<bool>('launchSettings', {
+      "packageName": package,
+    });
   }
 }

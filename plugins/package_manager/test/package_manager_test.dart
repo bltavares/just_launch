@@ -18,7 +18,8 @@ class MockPackageManagerPlatform
 }
 
 void main() {
-  final PackageManagerPlatform initialPlatform = PackageManagerPlatform.instance;
+  final PackageManagerPlatform initialPlatform =
+      PackageManagerPlatform.instance;
 
   test('$MethodChannelPackageManager is the default instance', () {
     expect(initialPlatform, isInstanceOf<MethodChannelPackageManager>());

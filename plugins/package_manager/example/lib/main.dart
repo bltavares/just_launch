@@ -51,26 +51,25 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-          appBar: AppBar(
-            title: const Text('Plugin example app'),
-          ),
-          body: ListView.builder(
-            itemBuilder: (context, i) {
-              final name = _platformVersion[i].label;
-              final package = _platformVersion[i].package;
-              return ListTile(
-                title: Text(name),
-                subtitle: Text(package),
-                onTap: () async {
-                  await _packageManagerPlugin.launchApp(package);
-                },
-                onLongPress: () async {
-                  await _packageManagerPlugin.launchSettings(package);
-                },
-              );
-            },
-            itemCount: _platformVersion.length,
-          )),
+        appBar: AppBar(title: const Text('Plugin example app')),
+        body: ListView.builder(
+          itemBuilder: (context, i) {
+            final name = _platformVersion[i].label;
+            final package = _platformVersion[i].package;
+            return ListTile(
+              title: Text(name),
+              subtitle: Text(package),
+              onTap: () async {
+                await _packageManagerPlugin.launchApp(package);
+              },
+              onLongPress: () async {
+                await _packageManagerPlugin.launchSettings(package);
+              },
+            );
+          },
+          itemCount: _platformVersion.length,
+        ),
+      ),
     );
   }
 }
