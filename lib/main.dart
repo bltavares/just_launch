@@ -138,36 +138,31 @@ class _AppListState extends State<AppList> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AppListModel>(builder: (context, model, _) {
-      Widget child;
+    return Consumer<AppListModel>(
+      builder: (context, model, _) {
+        Widget child;
 
-      if (model.hasError) {
-        child = Center(
-          key: const Key("error"),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                "Just Launch",
-                style: TextStyle(fontSize: 36),
-              ),
-              OutlinedButton(
-                onPressed: model.updateApps,
-                child: const Text("Retry"),
-              )
-            ],
-          ),
-        );
-      } else if (model.installedApps.isEmpty) {
-        child = const Center(
-          key: Key("loading"),
-          child: Text(
-            "Just Launch",
-            style: TextStyle(fontSize: 36),
-          ),
-        );
-      } else {
-        child = Padding(
+        if (model.hasError) {
+          child = Center(
+            key: const Key("error"),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text("Just Launch", style: TextStyle(fontSize: 36)),
+                OutlinedButton(
+                  onPressed: model.updateApps,
+                  child: const Text("Retry"),
+                ),
+              ],
+            ),
+          );
+        } else if (model.installedApps.isEmpty) {
+          child = const Center(
+            key: Key("loading"),
+            child: Text("Just Launch", style: TextStyle(fontSize: 36)),
+          );
+        } else {
+          child = Padding(
             key: const Key("loaded"),
             padding: const EdgeInsets.only(top: 20.0),
             child: Center(
@@ -184,29 +179,49 @@ class _AppListState extends State<AppList> {
                   Expanded(
                     child: RefreshIndicator(
                       onRefresh: model.updateApps,
-                      child: ListView.builder(
-                        itemCount: model.apps.length,
-                        itemBuilder: (context, index) => AppListButton(
-                          search: (String e) {
-                            model.search = e;
-                          },
-                          app: model.apps[index],
-                          text: text,
-                          plugin: model.plugin,
-                        ),
+                      child: FoldableWidget(
+                        builder: (context, fold, _) {
+                          Widget itemBuilder(context, index) => AppListButton(
+                            search: (String e) {
+                              model.search = e;
+                            },
+                            app: model.apps[index],
+                            text: text,
+                            plugin: model.plugin,
+                          );
+
+                          return fold
+                              ? GridView.builder(
+                                  key: const Key("grid"),
+                                  itemCount: model.apps.length,
+                                  itemBuilder: itemBuilder,
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        mainAxisExtent: 85,
+                                      ),
+                                )
+                              : ListView.builder(
+                                  key: const Key("list"),
+                                  itemCount: model.apps.length,
+                                  itemBuilder: itemBuilder,
+                                );
+                        },
                       ),
                     ),
                   ),
                 ],
               ),
-            ));
-      }
+            ),
+          );
+        }
 
-      return AnimatedSwitcher(
-        duration: const Duration(milliseconds: 500),
-        child: child,
-      );
-    });
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 500),
+          child: child,
+        );
+      },
+    );
   }
 }
 
@@ -279,6 +294,23 @@ class SearchTextField extends StatelessWidget {
         search("");
         text.clear();
       },
+    );
+  }
+}
+
+class FoldableWidget extends StatelessWidget {
+  const FoldableWidget({super.key, required this.builder, this.child});
+
+  final ValueWidgetBuilder<bool> builder;
+  final Widget? child;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final largeScreen = width > 600;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 100),
+      child: builder(context, largeScreen, child),
     );
   }
 }
