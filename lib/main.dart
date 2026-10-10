@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:collection/collection.dart';
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:package_manager/package_manager.dart';
 import 'package:package_manager/package_manager_platform_interface.dart';
 import 'package:provider/provider.dart';
@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var fallbackTheme = ColorScheme.fromSeed(
+    final fallbackTheme = ColorScheme.fromSeed(
       seedColor: Colors.grey,
       brightness: Brightness.dark,
       surface: Colors.black,
@@ -28,9 +28,7 @@ class MyApp extends StatelessWidget {
         ),
         home: const PopScope(
           canPop: false,
-          child: Scaffold(
-            body: MyLauncher(),
-          ),
+          child: Scaffold(body: MyLauncher()),
         ),
       ),
     );
@@ -84,8 +82,9 @@ class AppListModel extends ChangeNotifier {
   Future<void> updateApps() async {
     try {
       hasError = false;
-      installedApps =
-          await plugin.getAllApps().timeout(const Duration(seconds: 5));
+      installedApps = await plugin.getAllApps().timeout(
+        const Duration(seconds: 5),
+      );
     } catch (e) {
       hasError = true;
     }
@@ -123,16 +122,12 @@ class MyLauncherState extends State<MyLauncher> {
   }
 
   @override
-  Widget build(BuildContext context) => ChangeNotifierProvider.value(
-        value: appListModel,
-        child: const AppList(),
-      );
+  Widget build(BuildContext context) =>
+      ChangeNotifierProvider.value(value: appListModel, child: const AppList());
 }
 
 class AppList extends StatefulWidget {
-  const AppList({
-    super.key,
-  });
+  const AppList({super.key});
 
   @override
   State<AppList> createState() => _AppListState();

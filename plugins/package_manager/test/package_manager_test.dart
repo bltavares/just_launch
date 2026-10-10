@@ -7,7 +7,6 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 class MockPackageManagerPlatform
     with MockPlatformInterfaceMixin
     implements PackageManagerPlatform {
-
   @override
   Future<List<InstalledApp>> getAllApps() => Future.value([]);
 
