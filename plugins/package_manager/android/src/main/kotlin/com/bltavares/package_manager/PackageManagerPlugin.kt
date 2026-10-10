@@ -37,6 +37,7 @@ class PackageManagerPlugin : FlutterPlugin, MethodCallHandler {
                         null
                     )
                 }
+
             "launchSettings" -> call.argument<String>("packageName")
                 ?.also { jobContext.launch { launchAppSettings(it, result) } }
                 ?: run {
@@ -46,6 +47,7 @@ class PackageManagerPlugin : FlutterPlugin, MethodCallHandler {
                         null
                     )
                 }
+
             else -> result.notImplemented()
         }
     }
@@ -55,7 +57,9 @@ class PackageManagerPlugin : FlutterPlugin, MethodCallHandler {
             val intent = Intent(
                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.fromParts("package", packageName, null)
-            )
+            ).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
             startActivity(intent)
             return result.success(true)
         }

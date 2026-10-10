@@ -1,29 +1,35 @@
-// import 'package:flutter_test/flutter_test.dart';
-// import 'package:package_manager/package_manager.dart';
-// import 'package:package_manager/package_manager_platform_interface.dart';
-// import 'package:package_manager/package_manager_method_channel.dart';
-// import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:package_manager/package_manager.dart';
+import 'package:package_manager/package_manager_platform_interface.dart';
+import 'package:package_manager/package_manager_method_channel.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-// class MockPackageManagerPlatform
-//     with MockPlatformInterfaceMixin
-//     implements PackageManagerPlatform {
+class MockPackageManagerPlatform
+    with MockPlatformInterfaceMixin
+    implements PackageManagerPlatform {
 
-//   @override
-//   Future<String?> getPlatformVersion() => Future.value('42');
-// }
+  @override
+  Future<List<InstalledApp>> getAllApps() => Future.value([]);
 
-// void main() {
-//   final PackageManagerPlatform initialPlatform = PackageManagerPlatform.instance;
+  @override
+  Future<void> launchApp(String package) => Future.value();
 
-//   test('$MethodChannelPackageManager is the default instance', () {
-//     expect(initialPlatform, isInstanceOf<MethodChannelPackageManager>());
-//   });
+  @override
+  Future<void> launchSettings(String package) => Future.value();
+}
 
-//   test('getPlatformVersion', () async {
-//     PackageManager packageManagerPlugin = PackageManager();
-//     MockPackageManagerPlatform fakePlatform = MockPackageManagerPlatform();
-//     PackageManagerPlatform.instance = fakePlatform;
+void main() {
+  final PackageManagerPlatform initialPlatform = PackageManagerPlatform.instance;
 
-//     expect(await packageManagerPlugin.getPlatformVersion(), '42');
-//   });
-// }
+  test('$MethodChannelPackageManager is the default instance', () {
+    expect(initialPlatform, isInstanceOf<MethodChannelPackageManager>());
+  });
+
+  test('getPlatformVersion', () async {
+    PackageManager packageManagerPlugin = PackageManager();
+    MockPackageManagerPlatform fakePlatform = MockPackageManagerPlatform();
+    PackageManagerPlatform.instance = fakePlatform;
+
+    expect(await packageManagerPlugin.getAllApps(), []);
+  });
+}

@@ -1,11 +1,9 @@
 name: package_manager
-description: Expose Android Package Manager over method channels
 version: 0.0.1
-homepage: https://github.com/bltavares/just_launch
 
 environment:
-  sdk: ^3.6.0
-  flutter: ">=3.3.0"
+  sdk: ^3.10.8
+  flutter: '>=3.3.0'
 
 dependencies:
   flutter:
@@ -15,7 +13,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   plugin:
